@@ -1,5 +1,5 @@
 # privGnn
-Code for PrivGNN:Privacy Preserving Graph Neural Networks paper. This is anonymized for reviewers to reproduce our result
+Code for **PrivGNN:Privacy Preserving Graph Neural Networks** paper. This is anonymized for reviewers to reproduce our result
 
 ## To run:
 Run knn_graph.py
