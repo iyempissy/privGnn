@@ -1,8 +1,13 @@
-# privGnn
-Code for **PrivGNN:Privacy Preserving Graph Neural Networks** paper. This is anonymized for reviewers to reproduce our result
+# PrivGNN:Privacy Preserving Graph Neural Networks
+### by anonymous authors
+This repository contains additional details and allow the reproduction of the stated results. 
+We will make the repository publicly available upon acceptance. 
 
-## To run:
-Run knn_graph.py
+## Reproduction of Results
+PrivGNN can be executed via 
+```
+python3 knn_graph.py
+```
 
-## To change parameters e.g dataset, K, lambda, gamma etc.
-Make changes to the all_config.py file
+### Changin Parameters & Setting
+Please adjust the `all_config.py` file to change parameters, such as the dataset, K, lambda, or gamma.

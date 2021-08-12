@@ -20,9 +20,6 @@ def train_pate(model, optimizer, epochs, data_x, data_y, edge_index, evaluator, 
     # This function is for training the private model. Used in train_models()
     # use_mlp uses mlp instead of GNN for training the private model
 
-    # print("data_x", data_x)
-    # print("data_y", data_y)
-    # print("data_edge_index", edge_index)
     data_y = data_y.cpu()
     data_y = torch.LongTensor(data_y)
     data_x = data_x.to(device)
@@ -118,10 +115,6 @@ def train_models(num_teacher_graphs, epochs, private_data_x_all, private_data_ed
         model = train_pate(model, optimizer, epochs, private_data_x_all[i], private_data_y_all[i], private_data_edge_index_all[i], evaluator, device, use_mlp = config.use_mlp)
         models.append(model)
 
-        # if config.use_mlp:
-        #     model.apply(reset_parameters)
-        # else:
-        # # # reset model and params
         model.reset_parameters()
     return models
 
@@ -149,11 +142,8 @@ def aggregated_teachers(models, public_data_x, public_data_y, public_data_edge_i
         # print("results shape", results.shape)
         preds[i] = results
 
-    # print("preds", preds)
     # squeeze it out
     preds = preds.squeeze(2)
-    # print("pred squeeze", preds)
-
 
     labels = np.array([]).astype(int)
     for node_preds in np.transpose(preds):
@@ -182,10 +172,6 @@ def train_student_pate(model, optimizer, train_idx, public_x, public_label_from_
     '''
 
     model.train()
-    # print("public_edge_index", public_edge_index)
-    # turn train_idx to tensor
-    # train_idx = torch.LongTensor(train_idx)
-    # train_idx = Variable(train_idx)
     public_train_y = torch.LongTensor(public_label_from_teachers)
 
     if isinstance(public_x, list):  # this will be executed only for train data. Test data is already a tensor
@@ -196,26 +182,16 @@ def train_student_pate(model, optimizer, train_idx, public_x, public_label_from_
     fill[train_idx] = 1
     fill = torch.LongTensor(fill)
     train_mask = fill > 0
-    # print("train_mask", train_mask)
-    # print(train_mask.shape)
 
-    # print("type public_data_x", public_x.dtype) # torch.FloatTensor, torch.float32
-    # print("type public_data_edge_index", public_edge_index.dtype) # torch.LongTensor, torch.int64
-    # print("type public_data_y", public_train_y.shape) #torch.LongTensor, torch.int64
-    # print("type train_idx", train_idx.shape) #torch.LongTensor, torch.int64
-
-    # print("public_train_y.shape", public_train_y.shape)
     feature = 0
     train_acc = 0
 
     for e in range(epoch):
         optimizer.zero_grad()
         feature, logits = model(public_x,
-                             public_edge_index)  # TODO discuss with Thorben[train_mask] # [train_idx] Slice to only select data from the ones selected by teachers
+                             public_edge_index)
         out = logits.log_softmax(dim=-1)
-        # print("out", out.shape)
-        # print("public_train_y.squeeze(0)", public_train_y.squeeze(0).shape)
-        loss = F.nll_loss(out[train_idx], public_train_y.squeeze(0).to(device))  # TODO Discuss with Thorben
+        loss = F.nll_loss(out[train_idx], public_train_y.squeeze(0).to(device))
         y_pred = out.argmax(dim=-1, keepdim=True)
 
         loss.backward()
@@ -224,7 +200,7 @@ def train_student_pate(model, optimizer, train_idx, public_x, public_label_from_
         train_acc = evaluator.eval({
             'y_true': public_train_y.unsqueeze(1),
             # This was selected by the association of all teachers. Therefore, no need to slice
-            'y_pred': y_pred[train_idx],  # TODO Discuss with Thorben
+            'y_pred': y_pred[train_idx],
         })['acc']
 
         print(f'Epoch: {e:02d}, '

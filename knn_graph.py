@@ -56,15 +56,9 @@ if config.extract_features == "feature":
 else:
     isFeature = False
 
-# print("config.is_reddit_dataset", config.is_cora_dataset)
-# sys.exit()
-
 
 # For us, hog = using normal feature from the data while feature = updating the teacher features with model trained on student data (student model)!
 
-
-# Tweaking the feature extraction i.e instead of using the direct features, I use the features extracted from a trained SAGE model
-# Simply train 1st, then use the trained feature instead of raw feature from the dataset
 
 # Steps:
 # 1. create 1 model but 2 different parameters for each of the train {No just use the model reset params}
@@ -80,22 +74,6 @@ if torch.cuda.is_available():
     home_root = "/dstore/home/xxxx/private-knn-for-graphs/code/"
 else:
     home_root = "./"
-
-
-
-
-
-# max_norm_logits
-
-# [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-#[0.001, 0.003, 0.005, 0.008, 0.01, 0.03, 0.05, 0.08]
-# for max_norm_logits in [0.001]:
-
-
-
-
-
-
 
 
 result_file = open(home_root + "resultfile_privateGNN_" + config.data_name+".txt", "a")
@@ -119,9 +97,6 @@ global_start_time = time.time()
 # random_data = [2763934991,87952126,461858464,2251922041,2203565404,2569991973,569824674,2721098863,836273002,2935227127]
 random_data = [2763934991]
 for rand_state in random_data:
-    # random_data = os.urandom(4)
-
-    # rand_state = int.from_bytes(random_data, byteorder="big")
 
     if torch.cuda.is_available():
         config.save_model = "/dstore/home/xxxx/private-knn-for-graphs/code/save_model/graph"+config.data_name
@@ -142,7 +117,7 @@ for rand_state in random_data:
     acct = rdp_acct.anaRDPacct()
     dependent_acct = rdp_acct.anaRDPacct()
     delta = config.delta
-    b = 1 / config.epsilon  # config.epsilon #2.5
+    b = 1 / config.epsilon
     laplacian = lambda x: rdp_bank.RDP_laplace({'b': b}, x)  # 1 is the sensitivity
     
    
@@ -150,8 +125,7 @@ for rand_state in random_data:
     dir_path = config.save_model
     torch.manual_seed(rand_state)
 
-    device = torch.device(
-        'cuda' if torch.cuda.is_available() else 'cpu')  # f'cuda:{args_device}' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if config.use_sage:
         # SAGE architecture
@@ -240,7 +214,7 @@ for rand_state in random_data:
 
         elif config.is_amazon_dataset:
             # for amazon computer
-            dataset =  Amazon(data_root+"/Amazon", "Computers") # Photo
+            dataset =  Amazon(data_root+"/Amazon", "Computers")
             data = dataset[0]
             data = data.to(device)
 
@@ -265,11 +239,6 @@ for rand_state in random_data:
             print("data.y", data.y)
             print("len(data.y)", len(data.y))
 
-            # k = data.y.unique(return_counts=True)
-            # print("k", k)
-
-            # sys.exit()
-
             private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, idx_train_public, idx_test_public = preprocess_datasets.get_inductive_spilt(
                 data, config.nb_labels, 100, 4000, 4000, rand_state, config.data_name)  # hardcoded # 250, 3000, 3000
 
@@ -293,11 +262,9 @@ for rand_state in random_data:
                 # randomly shuffle
                 p = np.random.permutation(len(private_data_x))
                 private_data_idx = private_data_idx[p]
-                # print("b4", private_data_y)
                 private_data_x = private_data_x[p]
 
                 private_data_y = private_data_y[p]
-                # print("after", private_data_y)
                 all_split_private_idx = np.array_split(private_data_idx, config.num_teacher_graphs)
                 all_split_private_data_x = np.array_split(private_data_x.cpu(), config.num_teacher_graphs)
                 all_split_private_data_y = np.array_split(private_data_y.cpu(), config.num_teacher_graphs)
@@ -332,11 +299,6 @@ for rand_state in random_data:
 
 
         if config.use_sbm:
-            # flattened labels ==> Moved to the SBM
-            # private_data_y_flat = torch.LongTensor(list(itertools.chain.from_iterable(private_data_y)))
-            # print("private_data_y_flat", private_data_y_flat)
-
-
             # Normal SBM approach. 1 giant graph and
             private_data_x, private_data_edge_index = sbm.create_new_private_graph(len(private_data_x),
                                                                                    private_data_edge_index,
@@ -346,172 +308,6 @@ for rand_state in random_data:
                                                                                    plot_graph=False, device=device)
             print("SBM used!")
 
-        # # Seeing what the trainnode features look like for 1 node and print its features vectors
-        # print("Train node features of all node", private_data_x)
-        # print("Train node features of 1 node", private_data_x[0])
-        # print("Private Label", private_data_y)
-        # print("Public Label", public_data_y)
-        #
-        # print("public train_idx", idx_train_public.shape)
-        # print("public test index", idx_test_public.shape)
-        # print("All graph edge_index", data.edge_index.shape)
-        # print("Private edge_index", private_data_edge_index.shape)
-        # print("Public edge_index", public_data_edge_index.shape)
-        #
-        # print("Average node degree private ", (private_data_edge_index.shape[1] / len(private_data_x))/2)  # not necessary. Should be divided by 2
-        #
-        # print("Average node degree public", (public_data_edge_index.shape[1] / len(public_data_x))/2)
-
-
-
-        # # ============== Training features b4 using it =====================
-        # if config.extract_features != "features":
-        #     # cos this is not necessary when you are updating features of teachers using the student model anyways
-        #
-        #     # # Quickly use sparse index for extracting features. Using the direct public and private edge index performs worse
-        #     # private_data_edge_index_sparse = SparseTensor.from_edge_index(private_data_edge_index)
-        #     # private_data_edge_index_sparse = private_data_edge_index_sparse.to_symmetric()
-        #     #
-        #     # # print("private_data_edge_index symm", private_data_edge_index_sparse)
-        #     #
-        #     # public_data_edge_index_sparse = SparseTensor.from_edge_index(public_data_edge_index, sparse_sizes=(
-        #     #     test_val_idx.shape[0], test_val_idx.shape[0]))  # solution to size mismatch is specify sparse_sizes
-        #     # # print("public_data_edge_index b4", public_data_edge_index)
-        #     # public_data_edge_index_sparse = public_data_edge_index_sparse.to_symmetric()
-        #
-        #
-        #     # Train original features using SAGE. The edge index is left untouched
-        #     for i in range(0, config.student_epoch):
-        #         # TODO: I'm using train_baseline cos that does the job too
-        #         # Note I am using the full edge index of the private data
-        #         # change private_data_edge_index_sparse to private_data_edge_index if u dont wanna use the sparse tensor
-        #         private_data_x_trained, _ = aggr_and_network_functions.train_baseline(model, optimizer, private_idx, private_data_x, private_data_y, private_data_edge_index, evaluator, True)
-        #         # private_data_x_trained, _ = aggr_and_network_functions.train_baseline(model, optimizer, private_idx, private_data_x, private_data_y, private_data_edge_index_sparse, evaluator, True)
-        #         # reset params after last epoch
-        #         if i == config.student_epoch - 1:
-        #             model.reset_parameters()
-        #
-        #     private_data_x = private_data_x_trained.cpu().detach().numpy()
-        #     private_data_x = torch.FloatTensor(private_data_x).to(device)
-        #
-        #     print("=========== End private training of features=========")
-        #
-        #     # Do the same for public data
-        #     for i in range(0, config.student_epoch):
-        #         # TODO: I'm using train_baseline cos that does the job too
-        #         public_data_x_trained, _ = aggr_and_network_functions.train_baseline(model, optimizer, idx_train_public, public_data_x, public_data_y, public_data_edge_index, evaluator, False)
-        #         # public_data_x_trained, _ = aggr_and_network_functions.train_baseline(model, optimizer, idx_train_public,
-        #         #                                                                        public_data_x, public_data_y,
-        #         #                                                                        public_data_edge_index_sparse,
-        #         #                                                                        evaluator, False)
-        #         # reset params after last epoch
-        #         if i == config.student_epoch - 1:
-        #             model.reset_parameters()
-        #
-        #     public_data_x = public_data_x_trained.cpu().detach().numpy()
-        #     public_data_x = torch.FloatTensor(public_data_x).to(device)
-
-
-
-        # ================== using node 2 vec=========================
-
-        # private_data_edge_index_2vec = to_undirected(private_data_edge_index, private_data_x.shape[0])
-        # model = Node2VecEdit(private_data_edge_index_2vec, 128, 80,
-        #                  20, 10, sparse=True)#.to(device) #hardcoded force to cpu
-        #
-        # batch_size = 256
-        # lr = 0.01
-        # loader = model.loader(batch_size=batch_size, shuffle=True)
-        # print("loader", loader)
-        # optimizer = torch.optim.SparseAdam(list(model.parameters()), lr=lr)
-        #
-        # model.train()
-        # epochs = 5
-        # log_steps = 1
-        # for epoch in range(1,  epochs + 1):
-        #     for i, (pos_rw, neg_rw) in enumerate(loader):
-        #         optimizer.zero_grad()
-        #         # loss = model.loss(pos_rw.to(device), neg_rw.to(device))
-        #         loss = model.loss(pos_rw, neg_rw)
-        #         loss.backward()
-        #         optimizer.step()
-        #
-        #         if (i + 1) % log_steps == 0:
-        #             print(f'Epoch: {epoch:02d}, Step: {i + 1:03d}/{len(loader)}, '
-        #                   f'Loss: {loss:.4f}')
-        #
-        #         if (i + 1) % 100 == 0:  # Save model every 100 steps.
-        #             # print("Embed Model ", model)
-        #             # print("Model embed", model.embedding.weight.data.cpu())
-        #             save_embedding(model)
-        #     save_embedding(model)
-        #
-        # # set private to embedding
-        # private_data_x = model.embedding.weight.data.cpu().detach().numpy()
-        # private_data_x = torch.FloatTensor(private_data_x).to(device)
-
-
-        # # public
-        # public_data_edge_index_2vec = to_undirected(public_data_edge_index, public_data_x.shape[0])
-        # model = Node2VecEdit(public_data_edge_index_2vec, 128, 80,
-        #                      20, 10, sparse=True)  # .to(device) #hardcoded force to cpu
-        #
-        # batch_size = 256
-        # lr = 0.01
-        # loader = model.loader(batch_size=batch_size, shuffle=True)
-        # print("loader", loader)
-        # optimizer = torch.optim.SparseAdam(list(model.parameters()), lr=lr)
-        #
-        # model.train()
-        # epochs = 5
-        # log_steps = 1
-        # for epoch in range(1, epochs + 1):
-        #     for i, (pos_rw, neg_rw) in enumerate(loader):
-        #         optimizer.zero_grad()
-        #         # loss = model.loss(pos_rw.to(device), neg_rw.to(device))
-        #         loss = model.loss(pos_rw, neg_rw)
-        #         loss.backward()
-        #         optimizer.step()
-        #
-        #         if (i + 1) % log_steps == 0:
-        #             print(f'Epoch: {epoch:02d}, Step: {i + 1:03d}/{len(loader)}, '
-        #                   f'Loss: {loss:.4f}')
-        #
-        #         if (i + 1) % 100 == 0:  # Save model every 100 steps.
-        #             # print("Embed Model ", model)
-        #             # print("Model embed", model.embedding.weight.data.cpu())
-        #             save_embedding(model)
-        #     save_embedding(model)
-        #
-        # # set public to embedding
-        # public_data_x = model.embedding.weight.data.cpu().detach().numpy()
-        # public_data_x = torch.FloatTensor(public_data_x).to(device)
-
-
-
-
-
-
-
-
-        # # Forcing to train public using sparse tensor. The result of doing this makes some difference. From 5% to 10%
-        # public_data_edge_index = SparseTensor.from_edge_index(public_data_edge_index, sparse_sizes=(
-        #     test_val_idx.shape[0], test_val_idx.shape[0]))  # solution to size mismatch is specify sparse_sizes
-        # # print("public_data_edge_index b4", public_data_edge_index)
-        # public_data_edge_index = public_data_edge_index.to_symmetric()
-
-        # Removes edge index information from the analysis? Seems to be the same result as though edge index was used
-        # No, this also affects the baseline prediction. should I send 2 i.e one real and 1 Dummy? or just use dummy in the usage step rather than here
-        # Conclusion. Remove dummy things n add dummy directly to wherever necessary cos it's causing conflict with baseline
-        # # Dummy edge index
-        # if config.is_dummy_private_index:
-        #     private_data_edge_index = private_data_edge_index[:, :0]
-        #
-        # if config.is_dummy_public_index:
-        #     public_data_edge_index = public_data_edge_index[:, :0]
-
-
-
         # Second iteration i.e using the feature of the public data to update the features of the private
         if config.extract_features == "feature":
             if torch.cuda.is_available():
@@ -520,13 +316,6 @@ for rand_state in random_data:
                 filename = './save_model/graph'+config.data_name+'/knn_num_neighbor_'+str(config.nb_teachers)+'/'+str(config.nb_teachers)+'_stdnt_.checkpoint.pth.tar'
 
 
-            # Here, the "test"(student) is the public_data_train_x and the "train"(teacher) is the private_data_x
-            # This will reassign the features
-            # load model
-
-
-            # Dummy private edge index = private_data_edge_index[:, :0]
-
             # input the private_data_y to view performance of using the updated feature
             private_data_x, _ = aggr_and_network_functions.pred(model, private_data_x, private_data_y,
                                                                   private_data_edge_index[:, :0], evaluator, filename, True)
@@ -534,32 +323,11 @@ for rand_state in random_data:
             # changed to using full edge index for public data {03.03}
             # To input edge index for publuc, pass in the entire public_data_x. Then slice {No more slicing. See below comment}. This solves the indexerror index out of range in self error
             # For feature extraction, we input all the public_data and idx_train_public is not used in slicing.
-            # TODO could this be the reason why the update never works i.e I set it to public_data_train_x instead of public_data_x
-            # Change to public_data_x 11.05
             public_data_x, _ = aggr_and_network_functions.pred(model, public_data_x, public_data_y, public_data_edge_index, evaluator,
                                                                        filename, return_feature=True)
 
 
-
-        # =====================================End PyG dataset===============================================
-        # changed 03.03 to return only 1 data for public_data_x and y instead of their corresponding train test else it will not train transductively. we will slice using respective index
-
-
-        # print("private_data_x", private_data_x.shape)
-        # print("private_data_y", private_data_y.shape)
-        # print("private_data_edge_index",private_data_edge_index.shape)
-        # print("public_data_x", public_data_x.shape)
-        # print("public_data_y", public_data_y.shape)
-        # print("public_data_edge_index", public_data_edge_index.shape)
-        # print("idx_train_public", idx_train_public.shape)
-        # print("idx_test_public", idx_test_public.shape)
-
-
-
         return private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, idx_train_public, idx_test_public
-        # return private_data_x, private_data_y, private_data_edge_index, public_data_train_x, public_data_train_y, public_data_test_x, public_data_test_y,  public_data_edge_index, idx_train_public, idx_test_public
-        # Not needed===? cos a new subgraph has been recreated. returning the original test_idx and val_idx  instead of idx_train_public and idx_test_public since I am returning public_data_train_x and public_data_test_x instead of public_data_x
-
 
     def prepare_student_data(save=False):
         """
@@ -575,21 +343,6 @@ for rand_state in random_data:
 
         private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, public_train_idx, public_test_idx = extract_feature()
 
-        # print("public_train_idx", public_train_idx)
-        # print("public_train_idx[:config.stdnt_share]", public_train_idx[:config.stdnt_share])
-
-        # Change to cpu
-        # private_data_x = private_data_x.to(device)
-        # private_data_y = private_data_y.cpu()
-        # private_data_edge_index = private_data_edge_index.cpu()
-        # public_data_x = public_data_x.cpu()
-        # public_data_y = public_data_y.cpu()
-        # public_data_edge_index = public_data_edge_index.cpu()
-        # public_train_idx = public_train_idx.cpu()
-        # public_test_idx = public_test_idx.cpu()
-
-        # changing to public_data_x instead of public_train_x 03.03
-
         public_data_train_x = public_data_x[public_train_idx]
         public_data_train_y = public_data_y[public_train_idx]
         public_data_test_x = public_data_x[public_test_idx]
@@ -598,10 +351,6 @@ for rand_state in random_data:
 
 
         public_test_labels = np.array(public_data_test_y.cpu())
-
-        # if not config.is_reddit_dataset:
-        #     # Only do for Arxiv dataset
-        #     # flatten list
         public_test_labels = np.array(list(itertools.chain.from_iterable(public_test_labels)))
 
         # Plot distribution of the public_test labels
@@ -612,18 +361,9 @@ for rand_state in random_data:
         train_labels = np.array(private_data_y.cpu())
         test_labels = np.array(public_data_train_y.cpu())  # this is for calculating accuracy btw the predicted by teachers n original groundtruth
 
-        # print('train_label shape', train_labels.shape)
 
-        # if not config.is_reddit_dataset:
-        #     # Only Arxiv is list of list
-        #     # this is a list of list
-        #     # Flatten list
         train_labels = np.array(list(itertools.chain.from_iterable(train_labels)))
         test_labels = np.array(list(itertools.chain.from_iterable(test_labels)))
-        # print("train_labels train_labels", train_labels)
-
-        # TODO Here is where we want to intelligently select the student data. Meaning, we want to use active learning (AL) approach. We are also only doing for TKT
-        # Currently implemented: pagerank or clustering
 
         if config.use_pagerank:
             public_train_al_selection_idx = active_learning.page_rank(public_data_edge_index, public_train_idx, public_test_idx, config.nb_nodes_to_select)
@@ -635,13 +375,7 @@ for rand_state in random_data:
 
         if config.is_tkt:
             if config.use_al:
-                # print("Do some al")
-                # if config.use_pagerank: Now includes clustering, this we only need to change once
-                #     print("Do pagerank centrality")
                 stdnt_data = public_data_train_x[public_train_al_selection_idx]
-                # print("stdnt_data", stdnt_data)
-                # print("public_train_idx[public_train_al_selection_idx]", public_train_idx[public_train_al_selection_idx])
-                # print(stdnt_data.shape)
             else:
                 # Normal i.e default without doing any AL but TKT
                 stdnt_data = public_data_train_x[:config.stdnt_share]
@@ -657,99 +391,37 @@ for rand_state in random_data:
             # original
             teachers_preds = np.zeros([stdnt_data.shape[0], config.nb_teachers])
 
-        # subtract all KNN from private data from that of the public data
-
         for idx in range(len(stdnt_data)):
             query_data = stdnt_data[idx]
-            # print("private_data_x.shape[0]", private_data_x.shape[0])
-            # generate random numbers similar to arange(private_data_x.shape[0]). The total number will be  int(config.prob * num_train). This is what we will use as index later for selecting techers
             select_teacher = np.random.choice(private_data_x.shape[0], int(config.prob * num_train), replace=False)
-            print("select_teacher", select_teacher.shape) # value of int(config.prob * num_train)
-            # print("select_teacher", select_teacher.shape) #(no_of_private_data)
-
-            # print("private_data_x[select_teacher].cpu()", private_data_x[select_teacher].shape)
-            # print("query_data", query_data.shape)
+            print("select_teacher", select_teacher.shape)
 
             # Euclidean distance
             dis = np.linalg.norm(private_data_x[select_teacher].cpu() - query_data.cpu(),
                                  axis=1)  # ==========> Real KNN distance metric
 
-            # # cosine similarity. Putting 1- does the magic
-            # dis = 1-np.dot(private_data_x[select_teacher].cpu(), query_data.cpu()) / (np.linalg.norm(private_data_x[select_teacher].cpu()) * np.linalg.norm(query_data.cpu())) # ==========> Real KNN distance metric
-
-            # Need a forloop for this cos it only takes in the 1D
-            # dis = distance.cosine(private_data_x[select_teacher].cpu(), query_data.cpu())
-
-            # print("dis", dis)
-            # print("dis", dis.shape) #value of int(config.prob * num_train)
-
-
-            # select the label of each teacher and sort them based on their distance
-            # select nb_teachers from the original index generated for the teachers. It returns selected index
-            # print("np.argsort(dis)[:config.nb_teachers]", np.argsort(dis)[:config.nb_teachers], len(np.argsort(dis)[:config.nb_teachers])) # value of int(config.prob * num_train)
             k_index = select_teacher[np.argsort(dis)[:config.nb_teachers]] #sorting the distance and select only top config.nb_teachers
-            # print("k_index", k_index)
-            # print("k_index", len(k_index)) # nb_teachers
             print("Query no: ", idx, "out of: ", len(stdnt_data))
-            # print("train_labels[k_index]", train_labels[k_index])
 
 
 
             if config.is_tkt:
-                '''
-                TKT new approach 30.03:
-                1. Construct induced graph on on nodes in k-nearest neighbors of  a public node u
-                {For each node, we train a new GNN model using the nodes of the KNN} e.g if k=100, we use 100 nodes 
-                to predict 1 label?
-                Yes
-                
-                The "private" induced graph will also have the structure
-                
-                
-                What is the difference between this part and PATE? since smaller graphs are created?
-                The only differece will be that the graph is created on the go
-                
-                
-                2. The remaining part remains the same i.e Use the label to train the student data. End? 
-        
-                '''
-                # We will us the k-index as the selector and create the subgraph?
-
-                # should the induced graph be created from the private data or from all data?
-                # created from private index
-
-                # convert k_index to torch.uint8
                 k_index_for_graph = torch.LongTensor(k_index)
-                # print("k_index_for_graph", k_index_for_graph)
 
                 new_private_data_edge_index, _ = subgraph(k_index_for_graph, private_data_edge_index, relabel_nodes=True, num_nodes=private_data_x.shape[0])
-
-                # # uncomment to see the edge_index of the new private data subgraph that you generated using the KNN graphs
-                # print("old_private_data_edge_index", private_data_edge_index.shape)
-                # print("new_private_data_edge_index", new_private_data_edge_index.shape)
 
                 # Train the model on the train data and edge index and then use the data as the test?
                 # It will produce a single output as result
 
                 for i in range(0, config.student_epoch):
-                    # TODO: I'm using train_baseline cos that does the job too. Change the name of the function to something generic say train_model()?
-                    # k_index_for_graph is never used cos it's private (no spliting required). Just there for show
                     private_data_x_trained, _ = aggr_and_network_functions.train_baseline(model, optimizer, k_index_for_graph, private_data_x[k_index_for_graph], private_data_y[k_index_for_graph], new_private_data_edge_index, evaluator, True)
-                    # public_data_train_x[:config.stdnt_share][idx] ==> is the single test data or student data for which we wanna have label for
 
-                    # print("public_train_idx[:config.stdnt_share]", public_train_idx[:config.stdnt_share])
-                    # print("public_train_idx[:config.stdnt_share][idx]", public_train_idx[:config.stdnt_share][idx])
-
-                    # TODO need to change this as well to use active learning i.e slice the public_train_idx based on the index of the selected data based on AL rather than selecting by by stdnt_share
                     if config.use_al:
                         # if config.use_pagerank:
                         current_stdnt_idx = torch.LongTensor([public_train_idx[public_train_al_selection_idx][idx]]) # TODO slice the public_train_idx[] with some real tensor
                     else:
                         # Default i.e no AL is used
                         current_stdnt_idx = torch.LongTensor([public_train_idx[:config.stdnt_share][idx]])
-
-                    # workaround for  IndexError: slice() cannot be applied to a 0-dim tensor. Use tensor tensor. No need putting the [] works?
-                    # print("current_stdnt_idx", current_stdnt_idx)
 
                     # test and reset params after last epoch
                     if i == config.student_epoch - 1:
@@ -771,7 +443,7 @@ for rand_state in random_data:
 
 
         if config.is_tkt:
-            teachers_preds = np.asarray(teachers_preds, dtype=np.int32) #test_labels[public_train_al_selection_idx] #test_labels[:config.stdnt_share]
+            teachers_preds = np.asarray(teachers_preds, dtype=np.int32)
             print("teachers_preds tkt", teachers_preds.shape) # num_queries
         else:
             teachers_preds = np.asarray(teachers_preds, dtype=np.int32)
@@ -824,14 +496,7 @@ for rand_state in random_data:
         print("Composition of \epsilon, delta Laplacian mechanisms gives {} epsilon".format(e_dp_epsilon_comp))
         
 
-        # Aggregared labels predicted by teachers = stdnt_labels and test_labels is the original groundtruth. The idx is out of the 1k queries, the index of the selected one
-
-        # print("test_labels[:config.stdnt_share][idx]", test_labels[:config.stdnt_share][idx].shape) #789 # not using [idx] for now cos it had to pass through noisy screening i.r released vote
-
-        # TODO No difference bwteen using teachers_preds for TKT and stdnt_labels for original. Just use stdnt_labels for both. Changed 26.04 from metrics.accuracy(teachers_preds,...) to metrics.accuracy(stdnt_labels,...)
         if config.is_tkt:
-            # TODO we need to change :config.stdnt_share to some kind of array for active learning
-            # tkt
             if config.use_al:
                 # if config.use_pagerank:
                 correct_ans_label_list, ac_ag_labels = metrics.accuracy(stdnt_labels,
@@ -846,21 +511,11 @@ for rand_state in random_data:
         # print("Accuracy of the aggregated labels Original: " + ac_ag_labels_original)
         print("Accuracy of the aggregated labels: " + str(ac_ag_labels))
 
-        # sys.exit()
-
-
         # Plot stat of correctly answered labels
         preprocess_datasets.plot_labels(correct_ans_label_list, num_answered_query=num_answered_query, is_correct_label=True)
 
-
-
-
-
-        # current_eps = acct.get_eps(config.delta)
-        # print("current epsilon", current_eps) # same as e_dp_epsilon_comp
-
         # get original test index of the remaining. This will be used along side original public_data_y and public_data_x
-        stdnt_data_test_idx = public_test_idx  # public_train_idx[config.stdnt_share:]
+        stdnt_data_test_idx = public_test_idx
 
         if save:
             # Prepare filepath for numpy dump of labels produced by noisy aggregation
@@ -894,18 +549,10 @@ for rand_state in random_data:
 
         # convert to long tensor
         stdnt_train_idx = torch.LongTensor(np.array(stdnt_train_idx))
-
-        # print("stdnt_train_idx", stdnt_train_idx)
-        # sys.exit()
         # Solution: We need not return the confident data but the stdnt_train_idx of the confident data. Then we will use stdnt_train_idx to slice the public data
 
         stdnt_test_idx = stdnt_data_test_idx
 
-        # changed 03.03
-        # Real edge index used
-        # stdnt_edge_index = public_data_edge_index
-        # return confident_data, stdnt_labels, stdnt_edge_index, stdnt_test_data, stdnt_test_labels, stdnt_train_idx, stdnt_test_idx
-        # changed 03.03 {search for "solution"}
         return confident_data, private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, public_train_idx, public_test_idx, stdnt_labels, stdnt_train_idx, stdnt_test_idx, num_answered_query, ac_ag_labels, noisy_screening_comp, e_dp_epsilon_comp
 
 
@@ -927,7 +574,6 @@ for rand_state in random_data:
             utils.mkdir_if_missing(dir_path)
 
             # for saving the model
-
             filename = os.path.join(dir_path, str(config.nb_teachers) + '_stdnt_.checkpoint.pth.tar')
             print('save_file', filename)
             print('stdnt_label used for train', stdnt_labels.shape)
@@ -947,8 +593,6 @@ for rand_state in random_data:
             # all the private_data_x, private_data_y and private_data_edge_index are list of tensors. with the len of config.num_teacher_graphs
             private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, public_train_idx, public_test_idx = extract_feature()
 
-            # TODO: move to the prepare_stdnt_data function
-            #  prepare student data
             public_data_train_x = public_data_x[public_train_idx]
             public_data_train_y = public_data_y[public_train_idx]
             public_data_test_x = public_data_x[public_test_idx]
@@ -969,8 +613,6 @@ for rand_state in random_data:
             stdnt_train_idx = torch.LongTensor(np.array(stdnt_train_idx))
 
             stdnt_test_idx = public_test_idx
-
-
 
 
             # all trained teacher models. Here, the private_data_x etc. are list of tensors for each graph
@@ -1016,16 +658,6 @@ for rand_state in random_data:
             np.save(home_root+config.log_filename+str(config.epsilon)+"teacherpred", non_noisy_preds)
             np.save(home_root+config.log_filename+str(config.epsilon)+"stdntlabels", stdnt_labels)
 
-
-            # Not working: TODO: Save, then run later!
-            # data_dep_eps, data_ind_eps = pate_analysis.perform_analysis(teacher_preds=non_noisy_preds, indices=stdnt_labels,
-            #                                                    noise_eps=config.epsilon, delta=0.0001)
-            # print("Data Independent Epsilon:", data_ind_eps)
-            # print("Data Dependent Epsilon:", data_dep_eps)
-
-
-
-
             baseline1_test_acc = baseline1_star_test_acc = baseline2_test_acc = noisy_screening_comp = e_dp_epsilon_comp = 0
 
         else:
@@ -1042,10 +674,6 @@ for rand_state in random_data:
                                                                                    private_data_x, private_data_y,
                                                                                    private_data_edge_index, evaluator,
                                                                                    isBaseline1=True)
-
-
-            # Baseline1_star is subsampled and then we select the same number of teachers as we have e.g 1T or 3T
-            # Also noise is added
 
             # subsample
             select_teacher = np.random.choice(private_data_x.shape[0], int(config.prob * private_data_x.shape[0]), replace=False)
@@ -1064,22 +692,10 @@ for rand_state in random_data:
             # We need to create a graph from this 1K nodes as well to use the sampling version
             # changed from select_teacher to private_data_subset. This is the real and fair comparison!
             # if you wanna use all_private_data but subsampled, then change private_data_subset to select_teacher for creating the subgraph
-            # baseline1_star_private_data_edge_index, _ = subgraph(torch.LongTensor(select_teacher), private_data_edge_index, relabel_nodes=True, num_nodes=private_data_x.shape[0])
             baseline1_star_private_data_edge_index, _ = subgraph(torch.LongTensor(private_data_subset), private_data_edge_index, relabel_nodes=True, num_nodes=private_data_x.shape[0])
-
-            # print("baseline1_star_private_data_edge_index", baseline1_star_private_data_edge_index)
 
             # Lastly, select the same amount of students to label. This is the train_idx
             baseline1_star_public_train_idx = public_train_idx[:config.stdnt_share]
-
-            # initial without subsampling
-            # baseline1_star_test_acc = aggr_and_network_functions.train_test_baselines(modelBaseline_1_star, optimizer_baseline_1_star,
-            #                                                                        config.student_epoch, public_train_idx,
-            #                                                                        public_test_idx, public_data_x,
-            #                                                                        public_data_y, public_data_edge_index,
-            #                                                                        private_data_x[select_teacher], private_data_y[select_teacher],
-            #                                                                        private_data_edge_index, evaluator,
-            #                                                                        isBaseline1=True, isBaseline1_star=True)
 
             # baseline1_star with subsampling for the private data. Simply change the private_data with the baseline1_star_private_data
             baseline1_star_test_acc = aggr_and_network_functions.train_test_baselines(modelBaseline_1_star, optimizer_baseline_1_star,
@@ -1092,11 +708,6 @@ for rand_state in random_data:
 
 
             print("Got here 2")
-
-
-            # Quick test: Use x (no of answered query say 145) amount of public data to train and test on all?
-            # public_train_idx = public_train_idx[:145]
-
 
             baseline2_test_acc = aggr_and_network_functions.train_test_baselines(modelBaseline_2, optimizer_baseline_2,
                                                                                    config.student_epoch, public_train_idx,
@@ -1116,22 +727,9 @@ for rand_state in random_data:
         # result_file = open(home_root + "resultfile_privateGNN.txt", "a")
         # writing all print to file
         old_stdout = sys.stdout
-        # log_file = open(home_root+config.log_filename+str(max_norm_logits), "w")
         log_file = open(home_root+config.log_filename+str(config.epsilon), "w")
 
         sys.stdout = log_file
-
-        # num_answered_query_per_run = []
-        # ac_ag_labels_per_run = []
-        # baseline1_test_acc_per_run = []
-        # baseline1_star_test_acc_per_run = []
-        # baseline2_test_acc_per_run = []
-        # final_test_acc_per_run = []
-        #
-        # noisy_screening_comp_per_run = []
-        # e_dp_epsilon_comp_per_run = []
-
-        # global_start_time = time.time()
 
         start_time = time.time()
         num_answered_query, ac_ag_labels, baseline1_test_acc, baseline1_star_test_acc, baseline2_test_acc, final_test_acc, noisy_screening_comp, e_dp_epsilon_comp = train_student(
@@ -1176,66 +774,3 @@ for rand_state in random_data:
 
     if __name__ == '__main__':
         main()
-
-
-# num_answered_query_mean = statistics.mean(num_answered_query_per_run)
-# ac_ag_labels_mean = statistics.mean(ac_ag_labels_per_run)
-# baseline1_test_acc_mean = statistics.mean(baseline1_test_acc_per_run)
-# baseline1_star_test_acc_mean = statistics.mean(baseline1_star_test_acc_per_run)
-# baseline2_test_acc_mean = statistics.mean(baseline2_test_acc_per_run)
-# final_test_acc_mean = statistics.mean(final_test_acc_per_run)
-#
-# noisy_screening_comp_mean = statistics.mean(noisy_screening_comp_per_run)
-# e_dp_epsilon_comp_mean = statistics.mean(e_dp_epsilon_comp_per_run)
-#
-# num_answered_query_stdev = statistics.stdev(num_answered_query_per_run)
-# ac_ag_labels_stdev = statistics.stdev(ac_ag_labels_per_run)
-# baseline1_test_acc_stdev = statistics.stdev(baseline1_test_acc_per_run)
-# baseline1_star_test_acc_stdev = statistics.stdev(baseline1_star_test_acc_per_run)
-# baseline2_test_acc_stdev = statistics.stdev(baseline2_test_acc_per_run)
-# final_test_acc_stdev = statistics.stdev(final_test_acc_per_run)
-#
-# noisy_screening_comp_stdev = statistics.stdev(noisy_screening_comp_per_run)
-# e_dp_epsilon_comp_stdev = statistics.stdev(e_dp_epsilon_comp_per_run)
-#
-# all_ac_ag_labels = ''.join(str(e) + "," for e in ac_ag_labels_per_run)
-# all_baseline1_test_acc = ''.join(str(e) + "," for e in baseline1_test_acc_per_run)
-# all_baseline1_star_test_acc = ''.join(str(e) + "," for e in baseline1_star_test_acc_per_run)
-# all_baseline2_test_acc = ''.join(str(e) + "," for e in baseline2_test_acc_per_run)
-# all_final_test_acc = ''.join(str(e) + "," for e in final_test_acc_per_run)
-# all_rand_state = ''.join(str(e) + "," for e in rand_state_per_run)
-#
-# global_end_time = time.time()
-# global_total_run_time = (global_end_time - global_start_time)/(config.num_runs-1)
-#
-# if config.use_clustering and config.use_al:
-#     num_clusters = config.num_clusters
-# else:
-#     num_clusters = 0
-#
-#
-# # convert to string to get all the data per
-# result_file.write(" ================ Data: " + config.data_name+ " | Num Teachers: " + str(config.nb_teachers) +
-#                   " | Num Queries: " + str(config.stdnt_share) + " | Num Clusters: "+ str(num_clusters) + " | Epsilon: "+ str(config.epsilon) + "| SBM: " + str(config.use_sbm) + "| MLP: " + str(config.use_mlp) +
-#                   "\n|| Aggregated label Acc mean: " + str(ac_ag_labels_mean) + " std: " + str(
-#     ac_ag_labels_stdev) + " All: " + all_ac_ag_labels +
-#                   "\n|| Baseline1 mean: " + str(baseline1_test_acc_mean) + " std: " + str(
-#     baseline1_test_acc_stdev) + " All: " + all_baseline1_test_acc +
-#                   "\n|| Baseline1_star mean: " + str(baseline1_star_test_acc_mean) + " std: " + str(
-#     baseline1_star_test_acc_stdev) + " All: " + all_baseline1_star_test_acc +
-#                   "\n|| Baseline2 mean: " + str(baseline2_test_acc_mean) + " std: " + str(
-#     baseline2_test_acc_stdev) + " All: " + all_baseline2_test_acc +
-#                   "\n|| Final Test Accuracy mean: " + str(final_test_acc_mean) + " std: " + str(
-#     final_test_acc_stdev) + " All: " + all_final_test_acc +
-#                   "\n|| Total time: " + str(global_total_run_time) + "|| All Rand state: "+ all_rand_state+" ================== \n\n\n")
-#
-#
-# print(" ================ Data: " + config.data_name+ " | Num Teachers: " + str(config.nb_teachers) +
-#                   " | Num Queries: " + str(config.stdnt_share) + " | Num Clusters: "+ str(num_clusters) + " | Epsilon: "+ str(config.epsilon) +  "| SBM: " + str(config.use_sbm) + "| MLP: " + str(config.use_mlp) +
-#                   "\n|| Aggregated label Acc mean: " + str(ac_ag_labels_mean)  +
-#                   "\n|| Baseline1 mean: " + str(baseline1_test_acc_mean) +
-#                   "\n|| Baseline1_star mean: " + str(baseline1_star_test_acc_mean) +
-#                   "\n|| Baseline2 mean: " + str(baseline2_test_acc_mean) +
-#                   "\n|| Final Test Accuracy mean: " + str(final_test_acc_mean) )
-#
-# result_file.close()

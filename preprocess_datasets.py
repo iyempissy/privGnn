@@ -27,14 +27,6 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
     label_idx = data.y.cpu().detach().numpy().tolist()
     print("label_idx", len(label_idx))
     private_train_idx = []
-    # public_train_idx = []
-    # public_test_idx = []
-
-    # for i in range(num_classes):
-    #     c = [x for x in range(len(label_idx)) if label_idx[x] == i]
-    #     print("c", len(c)) #the min is 180 which is 7th class
-    #     sample = random.sample(range(c),num_train_Train_per_class)
-    #     private_train_idx.extend(sample)
 
     if config.is_arxiv_random_split:
         data.y = data.y.squeeze(1)
@@ -50,12 +42,8 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
 
     print("private_train_idx", len(private_train_idx))
 
-    # Randomly reshuffle private_train_idx
     random.shuffle(private_train_idx)
 
-    # TODO in the next round, make public train also based on class splitting
-
-    print()
     # check if file exist else do the running again. This saves time
     if os.path.isfile(config.save_model + "/public_train_idx" + data_name + "_" + str(num_public_train) + "_" + str(rand_state) + ".pt"):
         public_train_idx = torch.load(config.save_model + "/public_train_idx" + data_name + "_" + str(num_public_train) + "_" + str(rand_state) + ".pt")
@@ -65,10 +53,8 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
         # run again
         public_train_start_time = time.time()
         others = [x for x in range(len(label_idx)) if x not in set(private_train_idx)]
-        # print("others",others)
         print("done others")
         public_train_idx = torch.LongTensor(random.sample(others, num_public_train))
-        # save train_idx since it takes long
         torch.save(public_train_idx, config.save_model + "/public_train_idx" + data_name + "_" + str(num_public_train) + "_" + str(rand_state) + ".pt")
         public_train_end_time = time.time()
         print("done public train time", public_train_end_time - public_train_start_time)
@@ -104,33 +90,8 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
     for i in public_test_idx:
         public_test_mask[i] = 1
 
-    '''
-    get all nodes and corresponding edge_index information
-    '''
-    # This is for creating subgraphs
-
-    # For target
-
     # train
     private_data_x = data.x[private_train_idx]
-
-    # Begin TODO N
-    # tt = private_train_idx[0]
-    # print("tt", tt) #tensor(1110)
-    # torch.set_printoptions(threshold=10000)
-    # print("target_x_inductiveInitial", private_x)
-    # print("data.x[1110]", data.x[1110]) # private_train_idx[0]
-    # print("private_x[0]", private_x[0]) # equivalent to data.x[1110] cos 1110 is the 1st element of private_train_idx index list
-    # print("data.x[1395]", data.x[1395])
-
-    '''# print("private_x[1110]", private_x[1110]) # This will throw error cos the x i.e private_x starts from 0 and ends at 630. Simply idx are reassigned forming a kinda new graph
-    # So the original node ID is reassigned a new node ID with number ranging from 0 to 630
-    # Rather, do this:'''
-    # if torch.all(torch.eq(data.x[tt], private_x[0])):
-    #     print("private_x[0]", private_x[0])
-    #     print("private_x[1]", private_x[1])
-
-    # End TODO N
 
     private_data_y = data.y[private_train_idx]
 
@@ -168,29 +129,9 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
     all_public_idx = torch.cat((public_train_idx, public_test_idx), 0)
     public_data_edge_index, _ = subgraph(all_public_idx, data.edge_index, relabel_nodes=True)
 
-    # data = Data(private_data_x=private_data_x, private_data_edge_index=private_data_edge_index,
-    #             private_data_y=private_data_y,
-    #             public_data_x=public_data_x, public_data_edge_index=public_data_edge_index,
-    #             public_data_y=public_data_y,
-    #             private_train_mask=private_train_mask, idx_train_public=idx_train_public,
-    #             idx_test_public=idx_test_public)
     overall_end_time = time.time()
     print("Total time: ", overall_end_time - overall_start_time)
-    # return data
 
-    # if we wanna return data, then we need do
-    # amazon_graph = get_inductive_spilt(data, config.nb_labels, 250, 3000, 3000)
-    # private_data_x = amazon_graph.private_data_x
-    # private_data_y = amazon_graph.private_data_y
-    # private_data_edge_index = amazon_graph.private_data_edge_index
-    # public_data_x = amazon_graph.public_data_x
-    # public_data_y = amazon_graph.public_data_y
-    # # # public_data_y needs to be converted to cpu? Seem this is the solution to the error of line : public_test_labels = np.array(public_data_test_y)
-    # # public_data_y = public_data_y.cpu()
-    # public_data_edge_index = amazon_graph.public_data_edge_index
-    # idx_train_public = amazon_graph.idx_train_public
-    # idx_test_public = amazon_graph.idx_test_public
-    # private_idx = amazon_graph.private_train_mask
 
     print("private_data_edge_index", private_data_edge_index.shape)
     print("public_data_edge_index", public_data_edge_index.shape)
@@ -199,57 +140,18 @@ def get_inductive_spilt(data, num_classes, num_train_Train_per_class, num_public
     return private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, idx_train_public, idx_test_public
 
 
-
-
-
 def get_preprocessed_arxiv_dataset(dataset, use_sparse, device):
-    # data = dataset[0]
-    # data = data.to(device)
-    # all_edge_index = SparseTensor.from_edge_index(data.edge_index)  # This is equivalent to doing transform
-    # print("all_edge_index", all_edge_index)
-    #
-    # all_edge_index = all_edge_index.to_symmetric()
-    #
-    # print("all_edge_index symmetric", all_edge_index)
 
     split_idx = dataset.get_idx_split()
 
     train_idx, test_idx, val_idx = split_idx["train"], split_idx["test"], split_idx["valid"]
 
     private_idx, public_train_idx, public_test_idx = train_idx, test_idx, val_idx
-    # print("private_idx print", private_idx)
 
     graph = dataset[0].to(device)
 
-    # print("No of graphs", len(dataset))
-    # print("graph", graph)
-    # print("num_nodes", graph.num_nodes)
-    # print("num_node_features", graph.num_node_features)
-    # print("num_edges", graph.num_edges)
-    # print("num_edge_features", graph.num_edge_features)
-    # print("Num classes", dataset.num_classes)
-    # print("Average node degree", graph.num_edges / graph.num_nodes)
-    # print("No of training nodes", train_idx.shape)
-    # print("Training nodes label rate", len(train_idx) / graph.num_nodes)
-    # print("Contains isolated nodes", graph.contains_isolated_nodes())
-    # print("Contains self-loops", graph.contains_self_loops())
-    # print("Is undirected", graph.is_undirected())
-
-    # # Seeing what the trainnode features look like for 1 node and print its features vectors
-    # print("Train node features of all node", graph.x[train_idx])
-    # print("Train node features of 1 node", graph.x[train_idx][0])
-    # print("Label", graph.y[train_idx])
-    # print("train_idx", train_idx.shape)
-    # print("test_idx", test_idx.shape)
-    # print("Val_idx", val_idx.shape)
-
     # Do transductive for public i.e combine test_val_idx
     all_public_idx = torch.cat((public_train_idx, public_test_idx), 0)
-
-    # print("all_public_idx", all_public_idx.shape)
-    # print("All graph edge_index", graph.edge_index)
-    #
-    # print("\n\n\n ========================================================================================== \n")
 
     # create 1 graph (subgraph) from train idx and call it private data.
     # Also create 2 graphs from test and validation index and call it public_train and public_test respectively
@@ -269,17 +171,6 @@ def get_preprocessed_arxiv_dataset(dataset, use_sparse, device):
     print("private_data_x", private_data_x.shape)
     print("private_data edge index", private_data_edge_index.shape)  # get only edge_index
     print("Private_data_average degree", private_data_edge_index.size(1) / private_data_x.size(0))
-
-    # public_data_train_subgraph = subgraph(test_idx, edge_index=graph.edge_index, relabel_nodes=True)
-    # public_data_train_edge_index = public_data_train_subgraph[0]
-
-    # print("public_data_train_edge_index", public_data_train_edge_index)
-
-    # public_data_test_subgraph = subgraph(val_idx, edge_index = graph.edge_index, relabel_nodes=True)
-    # public_data_test_edge_index = public_data_test_subgraph[0]
-
-    # Don't split test and val (public train and test). Make them one graph and only slice through them as in transductive.
-    # The only thing that needs to be distinct is that of the private vs public
 
     print("all_public_idx.shape[0]", all_public_idx.shape[0])
     public_data_subgraph = subgraph(all_public_idx, edge_index=graph.edge_index,
@@ -335,12 +226,7 @@ def get_preprocessed_arxiv_dataset(dataset, use_sparse, device):
 
         public_data_edge_index = SparseTensor.from_edge_index(public_data_edge_index, sparse_sizes=(
             all_public_idx.shape[0], all_public_idx.shape[0]))  # solution to size mismatch is specify sparse_sizes
-        # print("public_data_edge_index b4", public_data_edge_index)
         public_data_edge_index = public_data_edge_index.to_symmetric()
-
-        # print("public_data_edge_index symmetric", public_data_edge_index)
-        #
-        # print("public_data_edge_index2", public_data_edge_index.size(0))
 
     return private_data_x, private_data_y, private_data_edge_index, public_data_x, public_data_y, public_data_edge_index, idx_train_public, idx_test_public
 

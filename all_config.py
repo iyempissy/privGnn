@@ -26,43 +26,39 @@ if config.is_reddit_dataset:
     config.nb_labels = 41  # hardcoded for reddit dataset
     config.nb_features = 602
     config.data_name = "Reddit"
-    # TODO: Run this again!
     # nb_teachers is the number of private nodes to select
-    config.nb_teachers = 1000  # 300 #50 #should be 300 for smaller data like amazon that has 750 after subsmapling else there will be error. For KNN and other SBM, it's important but for MLP, it's not
-    config.delta = 10e-5  # 0.00008
+    config.nb_teachers = 1000
+    config.delta = 10e-5
 elif config.is_amazon_dataset:
     config.nb_labels = 10  # hardcoded for amazon dataset, computers = 10, photo=8
     config.nb_features = 767 #computers = 767, photo=745
     config.data_name = "Amazon"
-    config.nb_teachers = 750  # 300 #50 #should be 300 for smaller data like amazon that has 750 after subsmapling else there will be error. For KNN and other SBM, it's important but for MLP, it's not
-    config.delta = 10e-4  # 0.0004
+    config.nb_teachers = 750
+    config.delta = 10e-4
 elif config.is_cora_dataset:
     config.nb_labels = 7  # hardcoded for cora dataset
     config.nb_features = 1433
     config.data_name = "Cora"
-    config.nb_teachers = 300  # 300 #50 #should be 300 for smaller data like amazon that has 750 after subsmapling else there will be error. For KNN and other SBM, it's important but for MLP, it's not
-    config.delta = 10e-4  # 0.00001
+    config.nb_teachers = 300
+    config.delta = 10e-4
 elif config.is_arxiv_random_split:
     config.nb_labels = 40  # hardcoded for arxiv dataset
     config.nb_features = 128
     config.data_name = "ArxivRandom"
     config.nb_teachers = 300
-    config.delta = 10e-5  # 0.00001
+    config.delta = 10e-5
 
 else:
     config.nb_labels = 40  # hardcoded for arxiv dataset
     config.nb_features = 128
     config.data_name = "Arxiv"
-    config.nb_teachers = 1000  # 300 #50 #should be 300 for smaller data like amazon that has 750 after subsmapling else there will be error. For KNN and other SBM, it's important but for MLP, it's not
+    config.nb_teachers = 1000
     config.delta = 10e-5  # 0.00001
 
 config.confident = True
 config.sigma1 = 75
-# Moved to each dataset
-# config.nb_teachers = 750#300 #50 #should be 300 for smaller data like amazon that has 750 after subsmapling else there will be error. For KNN and other SBM, it's important but for MLP, it's not
-# config.reuse_vote = False
 
-config.threshold = 10#round(0.6 * config.nb_teachers)  # 0.6 x num_teachers
+config.threshold = 10
 config.gau_scale = 25
 
 # if this is a confidence based methods, sigma1 is used for selection, and gau_scale is added to voting
@@ -78,9 +74,6 @@ config.gpu_devices = '1'
 
 config.use_sage = True
 config.extract_features = "normal"  # feature #normal
-# Not necessary
-# config.is_dummy_public_index = False # change to True if u dont wanna use the public edge_index during feature extraction
-# config.is_dummy_private_index = False # change to false if u wanna use all the private edge index during prediction
 
 config.data_dependent_rdp = False
 
@@ -91,12 +84,12 @@ config.add_gaussian_noise_logit = False #for adding noise to logit
 config.prob = 0.30 #0.15  # The sub-sampling ratio i.e Gamma To usee all data set to 1
 config.stdnt_share = config.nb_nodes_to_select = 1000 #1000  # num of queries from students
 
-# For adding noise directly to posteriors. This is for tkt
-config.epsilon = 0.8#0.5 #0.2 #10 use 1 cos sensitivity is 2
+# For adding noise directly to posteriors.
+config.epsilon = 0.8
 config.use_lap_noise = True # it will use gaussian noise with the delta if set to False
 
 # config.stepsize =20
-config.student_epoch = 500  # 25 #500
+config.student_epoch = 500
 
 config.save_model = "save_model/graph"+config.data_name
 
@@ -107,7 +100,6 @@ config.use_al = False
 config.use_pagerank = False#True # page rank centrality
 config.use_clustering = False # clustering approach
 config.num_clusters = 10  # 10
-# config.nb_nodes_to_select = 1000 # number of nodes to select based on centrality / other AL technique. No need now using config.stdnt_share
 
 
 if config.compute_baselines:

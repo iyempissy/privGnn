@@ -63,19 +63,6 @@ def clustering(public_data_train_x, num_clusters, query_budget, device):
     # Get the keys of this inyo a list (al_selectn_idx)
     # End
 
-    # (Not implemented) if al_selectn_idx < 1K queries (query budget),
-    # Randomly select for the clusters that have above the current say 100
-    # Add it into the al_selectn_idx. if that does not suffice, select a 2nd cluster n add the reamining to it
-
-    '''pos = torch.tensor([[0., 0.], [11., 9.], [2., 8.], [2., 2.], [8., 3.], [0., 0.]])
-    size = torch.Tensor([5, 5]). This needs to be defined for each dimension of the data. This can be a disadvantage cos you might as well not know the right one. Also tedious cos we have higher dimension
-
-    cluster = grid_cluster(pos, size)
-    print(cluster)  # tensor([0, 5, 3, 0, 1, 0])
-
-    Therefore, use pytorch k-mean
-    '''
-
     print("Cluster begins")
 
     # kmeans
@@ -98,11 +85,6 @@ def clustering(public_data_train_x, num_clusters, query_budget, device):
         count_per_cluster[c] = cluster_ids_x.count(c)
 
     print("count_per_cluster", count_per_cluster)
-    # 10 clusters count_per_cluster {0: 129, 1: 152, 2: 725, 3: 3715, 4: 25, 5: 2426, 6: 5075, 7: 2, 8: 1944, 9: 807} ==> Euclidean
-    # 10 clusters count_per_cluster {0: 1462, 1: 1002, 2: 830, 3: 1937, 4: 1248, 5: 1201, 6: 3318, 7: 911, 8: 1699, 9: 1392} ==> Cosine
-    # for 8 clusters count_per_cluster {0: 127, 1: 2583, 2: 729, 3: 6078, 4: 239, 5: 1988, 6: 3241, 7: 15}
-    # for 5 clusters count_per_cluster {0: 3160, 1: 3916, 2: 794, 3: 6807, 4: 323} ==> Euclidean
-    # for 5 clusters count_per_cluster {0: 2571, 1: 2841, 2: 2795, 3: 5744, 4: 1049} ==> Cosine
 
     # Map nodes to cluster_ids
     public_train_node_idx = [i for i in range(0, len(public_data_train_x))]

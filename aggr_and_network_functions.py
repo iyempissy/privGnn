@@ -15,9 +15,6 @@ from torch_geometric.nn import GCNConv, SAGEConv
 from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 from torch_geometric.utils import subgraph
 from torch_sparse import SparseTensor
-# from torch.nn.utils import clip_grad_norm_
-
-# if you wanna do the non-noisy version of the original version i.e not tkt, then search for baba, uncomment it and comment the line above it
 
 device = torch.device(
     'cuda' if torch.cuda.is_available() else 'cpu')
@@ -27,8 +24,6 @@ use_gpu = torch.cuda.is_available()
 import all_config as config
 config = config.config
 
-
-# 07.05.21 return logit rather than logsoftmax!
 
 def clip_grad_norm_(parameters, max_norm, norm_type=2):
     r"""Clips gradient norm of an iterable of parameters.
@@ -76,60 +71,26 @@ def clip_logits_norm(parameters, max_norm=4, norm_type=2, epsilon=0.1, add_gauss
     Returns:
         Total norm of the parameters (viewed as a single vector).
     """
-    # if isinstance(parameters, torch.Tensor):
-    #     parameters = [parameters]
-    # parameters = list(filter(lambda p: p.grad is not None, parameters))
+
     max_norm = float(max_norm)
     norm_type = float(norm_type)
-    # if norm_type == inf:
-    #     total_norm = max(p.grad.detach().abs().max() for p in parameters)
-    # else:
-    # total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]), norm_type)
 
     print("b4 parameters", parameters)
     print("param shape", parameters.shape)
 
-    # # uncomment this to  clip
-    # total_norm = torch.norm(parameters, norm_type)
-    # print("total_norm", total_norm)
-    # clip_coef = max_norm / (total_norm + 1e-6)
-    # print("clip_coef", clip_coef)
-    # if clip_coef < 1:
-    #     # for i in range(0, len(parameters)):
-    #     #     # print("p", p)
-    #     #     # p.grad.detach().mul_(clip_coef)
-    #     #     parameters[i] = parameters[i].mul(clip_coef)
-    #     # for p in parameters:
-    #     parameters.mul_(clip_coef)
-
     print("after multiplying parameters", parameters)
     # add Gaussian noise
     if add_gaussian_noise:
-        # # print("torch.normal(mean=0.0, std=epsilon * max_norm, size=(parameters.shape[0], parameters.shape[1]))", torch.normal(mean=0.0, std=epsilon * max_norm, size=(parameters.shape[0], parameters.shape[1])))
-        # parameters += torch.normal(mean=0.0, std=200,
-        #                            size=(parameters.shape[0], parameters.shape[1])).to(device)
-
         # change to numpy normal distribution. Seems something is odd here
         parameters = parameters.cpu().detach().numpy()
         # Add Gaussian noise to each logits individually to make it differentially private (DP)
         for i in range(0, len(parameters)):
-            # print("out[i][j] b4 noise", out[i])
             for j in range(0, len(parameters[i])):
-                # if config.use_lap_noise:
-                #     parameters[i][j] += np.random.laplace(0, beta, 1)
-                # else:
-                # Gaussian noise
-                # gau_scale = np.sqrt(2 * np.log(1.25 / config.delta)) * 1 / config.epsilon # this should be 2 not 1 i.e it's the sensitivity. Just using 1 to go with the other results that we had
-                parameters[i][j] += np.random.normal(scale=0.2) #np.random.normal(scale=gau_scale)
-            # print("out[i] after noise", out[i])
+                parameters[i][j] += np.random.normal(scale=0.2)
 
         # convert back to float tensor
         parameters = torch.FloatTensor(parameters)
 
-        # parameters += torch.normal(mean=0.0, std=epsilon * max_norm, size=(parameters.shape[0], parameters.shape[1])).to(device) #TODO change this to the right noise scale
-    # else: #Just do the clipping
-    #     print("no noise")
-    # print("noisy parameters", parameters)
     return parameters
 
 
@@ -185,8 +146,6 @@ class GCN(torch.nn.Module):
                  dropout):
         super(GCN, self).__init__()
 
-        # self.feature_conv = GCNConv(hidden_channels, in_channels) # converts back to input channel dimension
-        # solution to index out of range when using "features" is to add_self_loop = false TODO Ask Thorben
         self.convs = torch.nn.ModuleList()
         self.convs.append(GCNConv(in_channels, hidden_channels, cached=True, add_self_loops=False))
         self.bns = torch.nn.ModuleList()
@@ -195,11 +154,10 @@ class GCN(torch.nn.Module):
             self.convs.append(
                 GCNConv(hidden_channels, hidden_channels, cached=True, add_self_loops=False))
             self.bns.append(torch.nn.BatchNorm1d(hidden_channels))
-        self.convs.append(GCNConv(hidden_channels, in_channels, cached=True, add_self_loops=False))  # feature_conv
+        self.convs.append(GCNConv(hidden_channels, in_channels, cached=True, add_self_loops=False))
         self.convs.append(GCNConv(hidden_channels, out_channels, cached=True, add_self_loops=False))
 
         self.dropout = dropout
-        # self.max_norm_logits = max_norm_logits
 
     def reset_parameters(self):
         for conv in self.convs:
@@ -208,9 +166,6 @@ class GCN(torch.nn.Module):
             bn.reset_parameters()
 
     def forward(self, x, adj_t):
-        # The data happened to be a list of tensor. Error came from train_each_teacher by calling train()
-        # convert it to tensor
-        # print("xxxxxx Before", x)
         if isinstance(x, list):  # this will be executed only for train data. Test data is already a tensor
             x = torch.stack(x)
 
@@ -220,20 +175,10 @@ class GCN(torch.nn.Module):
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
 
-        features = self.convs[-2](x, adj_t)  # self.feature_conv(x, adj_t)
+        features = self.convs[-2](x, adj_t)
         x = self.convs[-1](x, adj_t)
 
-        # should be at query time
-        # x_clipped = x.detach()
-        # if config.is_clip_logit:
-        #     print("x b4 clip", x_clipped)
-        #     # x_clipped = clip_grad_norm_(x_clipped, max_norm=self.max_norm_logits, norm_type=2)
-        #     x_clipped = clip_logits_norm(x_clipped, max_norm=self.max_norm_logits, norm_type=2, epsilon=config.epsilon,
-        #                          add_gaussian_noise=config.add_gaussian_noise_logit)
-        #     print("x after clip", x_clipped)
-        # return features, x_clipped.log_softmax(dim=-1)
-
-        return features, x #.log_softmax(dim=-1)
+        return features, x
 
 
 class SAGE(torch.nn.Module):
@@ -252,7 +197,6 @@ class SAGE(torch.nn.Module):
         self.convs.append(SAGEConv(hidden_channels, out_channels))
 
         self.dropout = dropout
-        # self.max_norm_logits = max_norm_logits
 
     def reset_parameters(self):
         for conv in self.convs:
@@ -267,25 +211,11 @@ class SAGE(torch.nn.Module):
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
 
-        features = self.convs[-2](x, adj_t)  # self.feature_conv(x, adj_t)
-        # print("features.shape", features.shape)
+        features = self.convs[-2](x, adj_t)
 
         x = self.convs[-1](x, adj_t)
-        # print("xxxxxx", x)
-        # # print("x.detach()", x.detach())
-        # with torch.no_grad():
-        #     x_clipped = x
-        #     # if config.is_clip_logit:
-        #     #     print("x b4 clip", x_clipped)
-        #     #     # x_clipped = clip_grad_norm_(x_clipped, max_norm=self.max_norm_logits, norm_type=2)
-        #     #     x_clipped = clip_logits_norm(x_clipped, max_norm=self.max_norm_logits, norm_type=2, epsilon=config.epsilon,
-        #     #                          add_gaussian_noise=config.add_gaussian_noise_logit)
-        #     #     print("x after clip", x_clipped)
 
-        #    # return features, x_clipped.log_softmax(dim=-1)
-
-            # x is the features and log softmax
-        return features, x #.log_softmax(dim=-1)
+        return features, x
 
 
 
@@ -302,11 +232,9 @@ class MLP(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, X):
-        # print("attack X",X)
         X = F.relu(self.fc1(X))
         X = F.relu(self.fc2(X))
         X = self.fc3(X)
-        # X = self.softmax(X)
 
         return X
 
@@ -339,14 +267,10 @@ def aggregation_knn(labels, gaussian_scale, return_clean_votes=False):
     labels_shape = np.shape(labels)
     result = np.zeros(labels_shape[0])
     clean_votes = np.zeros([labels_shape[0], config.nb_labels])
-    # print("clean votes", clean_votes.shape)
 
     for i in xrange(int(labels_shape[0])):
-        # print("labels[i, :]", labels[i, :])
-        # print("labels[i, :]", labels[i, :].shape)
         label_count = np.bincount(labels[i, :],
                                   minlength=config.nb_labels)  # count the number of each vote for each label
-        # print("label_count", label_count)
 
         clean_votes[i] = np.bincount(labels[i, :], minlength=config.nb_labels)
         for item in xrange(config.nb_labels):  # this is all the labels
@@ -354,34 +278,16 @@ def aggregation_knn(labels, gaussian_scale, return_clean_votes=False):
             label_count[item] += np.random.normal(scale=gaussian_scale)
             label_counts = np.asarray(label_count, dtype=np.float32)
 
-        # print("noisy label count", label_counts)
         result[i] = np.argmax(label_counts)  # noisy label counts. This returns the index of the max label_count
-        # print("Argmax noisy result[", i, "]", result[i])
 
-    # print('clean_vote',clean_votes)
     results = np.asarray(result, dtype=np.int32)
     clean_votes = np.array(clean_votes, dtype=np.int32)
-    # print("clean votes", clean_votes)
-    # confident = true mean return confident based result, only max voting greater than threshold
 
     if config.confident == True:
         max_list = np.max(clean_votes, axis=1)  # max vote of each query
-        # print("max_list inital", max_list)
-
         for i in range(len(labels)):
             # add noise using config.sigma1 to the max_list i.e clean vote. Remember clean votes never had noise. 1st time of adding noise
             max_list[i] += np.random.normal(scale=config.sigma1)
-            # print("Baba")
-        # print("max_list after noise", max_list)
-
-        '''
-        # clarification: results is a noisy vote without screening / threshold. The noise added there is wrt config.gau_scale.
-        # max_list is a noisy vote that would be later used for screening / threshold. The noise added is wrt config.sigma1
-
-        # U need to add another noise after selecting which of the result to select (2nd noise).
-        # Note: 1st noise is just used to select which of the clean votes to include, the 2nd noise is the real noise added to the result. This is what is released
-        
-        '''
 
         idx_keep = np.where(
             max_list > config.threshold)  # returns index where the max_list > threshold. Dimension is 1 x num_query
@@ -400,8 +306,6 @@ def aggregation_knn(labels, gaussian_scale, return_clean_votes=False):
             for item in range(config.nb_labels):
                 # add another noise to the released vote (2nd noise) using config.gau_scale
                 release_vote[idx, item] += np.random.normal(scale=config.gau_scale)
-                # print("Baba")
-            # print('release_vote',release_vote[idx])
             confi_result[idx] = np.argmax(release_vote[idx])  # returns the index of the max vote
         confi_result = np.asarray(confi_result, dtype=np.int32)
         return idx_keep, confi_result, idx_remain
@@ -463,7 +367,6 @@ def pred(model, data_x, data_y, edge_index, evaluator, save_path, return_feature
         predA = logits.log_softmax(dim=-1)
 
         predA = predA.cpu()
-        # print('features shape {} predA shape'.format(features.shape, predA.shape))
         float_logit_list.append(torch.sigmoid(predA))
         predA = predA.argmax(dim=-1, keepdim=True)
 
@@ -477,8 +380,6 @@ def pred(model, data_x, data_y, edge_index, evaluator, save_path, return_feature
         print("Pred Acc after update", pred_acc)
         if return_feature is True:
             feature_list.append(features.cpu())
-        # _, predicted = torch.max(predA.data, 1)
-        # print('predAs', predicted)
         pred_list.append(predA)
     predA_t = (((torch.cat(pred_list,
                            0)).float()).numpy()).tolist()  # Its's fine: only 1 list not multiple in the pred_list since not using loader / batching
@@ -488,8 +389,6 @@ def pred(model, data_x, data_y, edge_index, evaluator, save_path, return_feature
         feature_list = (((torch.cat(feature_list, 0)).float()).numpy()).tolist()
         feature_list = np.array(feature_list)
         feature_list = torch.FloatTensor(feature_list)
-        # print("Done featurelist torch type", feature_list.dtype) #floatTensor
-        # print("Done predA_t torch type", predA_t.dtype) # nparray
         return feature_list, predA_t
     else:
         return predA_t
@@ -501,41 +400,25 @@ def pred(model, data_x, data_y, edge_index, evaluator, save_path, return_feature
 def train_each_teacher(model, optimizer, num_epoch, public_x, public_label, public_label_from_teachers,
                        public_edge_index,
                        public_train_idx, public_test_idx, evaluator, save_path, isFeature):
-    '''
-        {strikethrough} public_train_data_x, public_train_label, public_train_edge_index, => public_data_train ==>important
-        changed: 03.03
-                All we need is input public_x and slice with train_idx and test_idx resp!
-                public_train_idx is the index of the data selected by teachers and public_label_from_teachers is the labels assigned by teachers
-
-    Because you are saving this model. You are supposed to use this model to predict on the private data to update the
-    features of the private data!
-
-        {strikethrough} public_test_data_x, public_test_label, test_edge_index, => public data. This is public_data_test.
-    '''
     print('train_data', len(public_x[public_train_idx]), 'public_train_label', len(public_label_from_teachers))
 
     print("==> Start training")
 
     start_time = time.time()
     for epoch in range(num_epoch):
-        # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
 
         print('\n=> Training Epoch #%d, LR=%.4f' % (epoch, 0.01))
-        # train(epoch, model, criterion, optimizer, trainloader, use_gpu) # train function
-
         '''
         We are training the student model on the public data. This is like the Hog flag if the public_train_x is the feature directly from the data else feature flag 
         Hog is synonymous to using the direct features from the data.
         We will use the saved model to get features for the private model (this is the feature flag)
         '''
 
-        # train(model, optimizer, public_train_idx, public_train_data_x, public_train_label, public_train_edge_index,
-        #       evaluator, epoch)
         train(model, optimizer, public_train_idx, public_x, public_label_from_teachers, public_edge_index,
               evaluator, epoch)
 
         test(model, public_test_idx, public_x, public_label, public_edge_index, evaluator,
-             isFeature=isFeature)  # test function
+             isFeature=isFeature)
 
     _, final_test_acc = test(model, public_test_idx, public_x, public_label, public_edge_index, evaluator,
                           isFeature=isFeature)
@@ -563,48 +446,24 @@ def train(model, optimizer, train_idx, public_x, public_label_from_teachers, pub
     '''
 
     model.train()
-    # print("public_edge_index", public_edge_index)
-    # turn train_idx to tensor
-    # train_idx = torch.LongTensor(train_idx)
-    # train_idx = Variable(train_idx)
     public_train_y = torch.LongTensor(public_label_from_teachers)
     optimizer.zero_grad()
 
     if isinstance(public_x, list):  # this will be executed only for train data. Test data is already a tensor
         public_x = torch.stack(public_x)
 
-    # have tensors of all zeros n set to 1 if its in train_idx. Then use it accordingly?
+    # have tensors of all zeros n set to 1 if its in train_idx
     fill = np.zeros(public_x.shape[0])
     fill[train_idx] = 1
     fill = torch.LongTensor(fill)
     train_mask = fill > 0
-    # print("train_mask", train_mask)
-    # print(train_mask.shape)
-
-    # print("type public_data_x", public_x.dtype) # torch.FloatTensor, torch.float32
-    # print("type public_data_edge_index", public_edge_index.dtype) # torch.LongTensor, torch.int64
-    # print("type public_data_y", public_train_y.shape) #torch.LongTensor, torch.int64
-    # print("type train_idx", train_idx.shape) #torch.LongTensor, torch.int64
-
-    # print("public_train_y.shape", public_train_y.shape)
-
-    '''
-    # Problem to discuss with Thorben:
-    #     Difference between slicing at the model level vs slicing at the output / loss level
-    #     model(public_x, public_edge_index)[train_idx]
-    #     vs
-    #     F.nll_loss(out[train_idx], public_train_y.squeeze(0))
-    
-    '''
 
     feature, logits = model(public_x,
-                         public_edge_index)  # TODO discuss with Thorben[train_mask] # [train_idx] Slice to only select data from the ones selected by teachers
+                         public_edge_index)
 
     out = logits.log_softmax(dim=-1)
 
-    # print("out", out.shape)
-    # print("public_train_y.squeeze(0)", public_train_y.squeeze(0).shape)
-    loss = F.nll_loss(out[train_idx], public_train_y.squeeze(0).to(device))  # TODO Discuss with Thorben
+    loss = F.nll_loss(out[train_idx], public_train_y.squeeze(0).to(device))
     y_pred = out.argmax(dim=-1, keepdim=True)
 
     loss.backward()
@@ -613,14 +472,13 @@ def train(model, optimizer, train_idx, public_x, public_label_from_teachers, pub
     train_acc = evaluator.eval({
         'y_true': public_train_y.unsqueeze(1),
         # This was selected by the association of all teachers. Therefore, no need to slice
-        'y_pred': y_pred[train_idx],  # TODO Discuss with Thorben
+        'y_pred': y_pred[train_idx],
     })['acc']
 
     print(f'Epoch: {epoch:02d}, '
           f'Loss: {loss.item():.4f}, '
           f'Public (train): {100 * train_acc:.2f}%')
 
-    # return loss.item(), train_acc
     return feature, train_acc
 
 
@@ -637,15 +495,7 @@ def test(model, test_idx, public_x, public_y, public_edge_index, evaluator, isIn
 
     out = logits.log_softmax(dim=-1)
 
-    # # Add loss for early stopping
-    # loss = F.nll_loss(out[test_idx], public_data_y[test_idx].squeeze(1).to(device))
-
     y_pred = out.argmax(dim=-1, keepdim=True)
-
-    # print("y_pred", y_pred.shape)
-    # print("y_pred[test_idx]", y_pred[test_idx].shape)
-    # print("public_data_y", public_data_y.shape)
-    # print("public_data_y[test_idx]", public_data_y[test_idx].shape)
 
 
     test_acc = evaluator.eval({
@@ -653,9 +503,7 @@ def test(model, test_idx, public_x, public_y, public_edge_index, evaluator, isIn
         'y_pred': y_pred[test_idx],  # do slicing
     })['acc']
 
-    # print(f'Loss (test): {loss.item():.4f}%')
     print(f'PrivateAccuracy (test): {100 * test_acc:.2f}%')
-    # return valid_acc, test_acc
     return feature, test_acc
 
 
@@ -689,7 +537,6 @@ def train_baseline(model, optimizer, train_idx, data_x, data_y, edge_index, eval
         loss = F.nll_loss(out[train_idx], data_y.squeeze(1)[train_idx].to(device))
 
     y_pred = out.argmax(dim=-1, keepdim=True)
-    # y_pred = y_pred.cpu()
 
     loss.backward()
     optimizer.step()
@@ -718,19 +565,6 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
     # if isBaseline1=False, the accuracy is computed over only the selected or sliced y
 
     model.eval()
-    # print("test_idx", test_idx.shape)
-    # print("data_x", data_x.shape)
-    # print("data_y", data_y.shape)
-    # print("edge_index", edge_index.shape)
-
-    # Not needed cos we will never test on private data anyways
-    # if isBaseline1:
-    #     test_idx = test_idx.to(device)
-    #
-    #     data_x = data_x.to(device)
-    #     edge_index = edge_index.to(device)
-    # else:
-    #     test_idx = test_idx.cpu()
 
     data_y = data_y.cpu()
     test_idx = test_idx.cpu()
@@ -738,13 +572,6 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
     data_y = torch.LongTensor(data_y)
 
     feature, logits = model(data_x, edge_index)
-    # print("All out", out)
-    # print("All out shape", out.shape)
-
-    # Where we need to add noise
-    # We need to do such that at query time, the logit is returned rather than the log softmax.
-    # TODO: off shore logsoftmax to where the model is to be used. Done
-    # TODO use only when noise is true. Then clip!
 
     y_pred = logits.argmax(dim=-1, keepdim=True)
     test_acc = evaluator.eval({
@@ -753,12 +580,6 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
     })['acc']
 
     print("Test accuracy of logit b4 clipping", test_acc)
-
-
-    # clip logits
-    # logits_clipped = clip_logits_norm(logits, max_norm=max_norm_logits, norm_type=2, epsilon=config.epsilon, add_gaussian_noise=addNoisetoPosterior)
-
-    # out = logits_clipped.log_softmax(dim=-1)
 
     out = logits.log_softmax(dim=-1)
 
@@ -779,9 +600,8 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
                     out[i][j] += np.random.laplace(0, beta, 1)
                 else:
                     # Gaussian noise
-                    gau_scale = np.sqrt(2 * np.log(1.25 / config.delta)) * 1 / config.epsilon # this should be 2 not 1 i.e it's the sensitivity. Just using 1 to go with the other results that we had
+                    gau_scale = np.sqrt(2 * np.log(1.25 / config.delta)) * 1 / config.epsilon
                     out[i][j] += np.random.normal(scale=gau_scale)
-            # print("out[i] after noise", out[i])
 
         # convert back to float tensor
         out = torch.FloatTensor(out)
@@ -789,7 +609,6 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
     else:
         y_pred = out.argmax(dim=-1, keepdim=True)
 
-    # y_pred = out.argmax(dim=-1, keepdim=True)
 
     test_acc = evaluator.eval({
         'y_true': data_y[test_idx],  # for test data
@@ -799,9 +618,7 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
     print("Test accuracy of clipped logit", test_acc) #==>Same as below. Just printed
 
 
-    # print("ypred shape", y_pred.shape)
-    # print("ttrue shape", public_data_y.shape)
-    if isBaseline1: #This is almost useless especially for the baselines cos you have to slice the public test
+    if isBaseline1:
         # private data, no slicing
         test_acc = evaluator.eval({
             'y_true': data_y,  # for test data
@@ -810,18 +627,11 @@ def test_baseline(model, test_idx, data_x, data_y, edge_index, evaluator, isBase
 
         final_ypred = y_pred
     else:
-        # print("data_y[test_idx]", data_y[test_idx])
-        # print("y_pred[test_idx]", y_pred[test_idx])
         test_acc = evaluator.eval({
             'y_true': data_y[test_idx],  # for test data
             'y_pred': y_pred[test_idx],  # do slicing
         })['acc']
-        # if isNewMethod:
-        #     final_ypred = y_pred[test_idx].item() # done because of the new method proposed by Megha
-        # else:
         final_ypred = y_pred[test_idx]
-
-    # print(f'Precision (test): {100 * test_acc:.2f}%')
 
     return test_acc, final_ypred
 
@@ -854,17 +664,10 @@ def train_test_baselines(model, optimizer, num_epoch, train_idx, test_idx, publi
                 # Redefining things here is redundant but it's okay
                 train_baseline(model, optimizer, train_idx, private_data_x, private_data_y, private_edge_index,
                                evaluator, isBaseline1)
-            # Bug:22.04. I am training and testing on the same dataset even for baseline 1?
-            # test_baseline(model, test_idx, private_data_x, private_data_y, private_edge_index, evaluator, isBaseline1) ==> Delete this
-            # Actually, test_baseline should not have isBaseline1 cos we are only using the information of the public data. Therefore, set to False
-            # test_baseline(model, test_idx, public_data_x, public_data_y, public_edge_index, evaluator,
-            #               False)
         else:
             # train_idx is needed here so as to slice only the public_train (Baseline2: Transductive)
             train_baseline(model, optimizer, train_idx, public_data_x, public_data_y, public_edge_index, evaluator,
                            isBaseline1)
-            # No need ot test at every epoch
-            # test_baseline(model, test_idx, public_data_x, public_data_y, public_edge_index, evaluator, isBaseline1)
 
 
 
