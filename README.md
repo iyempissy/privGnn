@@ -1,4 +1,4 @@
-# PrivGNN:Privacy Preserving Graph Neural Networks
+# Releasing Graph Neural Networks with Differential Privacy Guarantees
 ### by anonymous authors
 This repository contains additional details and allow the reproduction of the stated results. 
 We will make the repository publicly available upon acceptance. 
