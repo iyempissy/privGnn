@@ -14,10 +14,10 @@ Release a GNN model that is trained on sensitive data yet robust to attacks. Imp
 
 
 # Results
-## Privacy-accuracy tradeoff
+## Privacy-accuracy Tradeoff
 <p align=center><img style="vertical-align:middle" src="https://github.com/iyempissy/privGnn/blob/main/images/accuracy_vs_noise.png" /></p>
 
-## Privacy budget vs noise
+## Privacy Budget vs Noise
 <p align=center><img style="vertical-align:middle" src="https://github.com/iyempissy/privGnn/blob/main/images/privacybudget_vs_noise.png" /></p>
 
 ## Membership Inference Attacks
@@ -28,11 +28,11 @@ Release a GNN model that is trained on sensitive data yet robust to attacks. Imp
 <p align=center><img style="vertical-align:middle" src="https://github.com/iyempissy/privGnn/blob/main/images/miattack_2.png" /> </p>
 
 
-## Reproducing of Results
+## Reproducing Results
 PrivGNN can be executed via 
 ```
 python3 knn_graph.py
 ```
 
 ### Changing Parameters & Setting
-Please adjust the `all_config.py` file to change parameters, such as the dataset, K, lambda, or gamma.
+Please adjust the `all_config.py` file to change parameters, such as the datasets, K, lambda, attack, baselines, or gamma.
