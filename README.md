@@ -1,7 +1,6 @@
 # Releasing Graph Neural Networks with Differential Privacy Guarantees
-### by anonymous authors
+### by Iyiola E. Olatunji, Thorben Funke, Megha Khosla
 This repository contains additional details and reproducibility of the stated results. 
-We will make the repository publicly available upon acceptance. 
 
 ## Motivation: 
 Real-world graphs, such often are associated with sensitive information about individuals and their activities. Hence, they cannot always be made public. Moreover, graph neural networks (GNNs) models trained on such sensitive data can leak significant amount of information e.g via membership inference attacks.
