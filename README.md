@@ -1,5 +1,5 @@
 # Releasing Graph Neural Networks with Differential Privacy Guarantees
-### by Iyiola E. Olatunji, Thorben Funke, Megha Khosla
+<!--### by Iyiola E. Olatunji, Thorben Funke, Megha Khosla-->
 This repository contains additional details and reproducibility of the stated results. 
 
 ## Motivation: 
